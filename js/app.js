@@ -121,7 +121,7 @@
         <td>${money(c.spend)}</td>
         <td>${fmt(c.reach)}</td>
         <td>${DATA.CUR}${c.cpm}</td>
-        <td style="color:${c.roas>=2?'#2fe08a':'#ffcf5c'};font-weight:600">${c.roas}x</td>
+        <td style="color:${c.roas==null?'var(--muted)':c.roas>=2?'#2fe08a':'#ffcf5c'};font-weight:600">${c.roas==null?'—':c.roas+'x'}</td>
       </tr>`).join("") + `</tbody>`;
   }
 
@@ -197,15 +197,19 @@
 
     $("#howtoBox").innerHTML = `
       <p>Right now the dashboard runs in <strong>Demo mode</strong> — realistic data that auto-refreshes so you can present to clients immediately.</p>
-      <p><strong>X (Twitter) is wired up first</strong> and ready to go live. To switch it on:</p>
+      <p><strong>Two integrations are built &amp; ready:</strong> <strong>Meta</strong> (Instagram + Facebook + ad spend — <em>free API</em>) and <strong>X / Twitter</strong> (pay-per-use). To go live:</p>
       <ol>
-        <li>Create an <strong>X developer account &amp; app</strong> at <code>developer.x.com</code> and copy your <strong>Bearer token</strong>. <em>(Reading analytics needs X's paid <strong>Basic</strong> tier, ~$100/mo — the free tier won't return the data.)</em></li>
-        <li>Deploy the backend in <code>/server</code> — the repo includes a one-click <code>render.yaml</code> for <strong>Render</strong> (free). See <code>README.md</code> → “Going live”.</li>
-        <li>In Render, add your token as the <code>X_BEARER_TOKEN</code> environment variable (never in the website files).</li>
-        <li>In <code>js/config.js</code> set <code>DATA_MODE: "live"</code> and <code>API_BASE</code> to your Render URL. Make sure each client's <strong>X / Twitter</strong> handle is filled in above.</li>
+        <li>Deploy the backend in <code>/server</code> — one click via the included <code>render.yaml</code> on <strong>Render</strong>. See <code>README.md</code> → “Going live”.</li>
+        <li>Get your tokens and add them as environment variables in Render (never in the website files):
+          <ul>
+            <li><strong>Meta:</strong> <code>META_TOKEN</code> — a Graph API token from a Meta developer app (covers IG, FB &amp; ads).</li>
+            <li><strong>X:</strong> <code>X_BEARER_TOKEN</code> — from <code>developer.x.com</code>. <em>(Analytics access is pay-per-use; smart caching keeps it ~R25–R50/client/mo.)</em></li>
+          </ul>
+        </li>
+        <li>In <code>js/config.js</code> set <code>DATA_MODE: "live"</code> and <code>API_BASE</code> to your Render URL. Fill in each client's handles above (for several Meta clients, add their IDs under “Advanced” when adding a client).</li>
       </ol>
-      <p>That's it — every chart, KPI, blind-spot and the PDF export keep working, now on real X data. <strong>Instagram, Facebook, TikTok and LinkedIn</strong> drop in the same way next (Meta covers IG + FB + ad spend in one app).</p>
-      <p style="color:var(--muted2)">Note: X provides a <em>current</em> follower count only, so the growth chart fills in from the day you go live (the backend records a daily snapshot). Reach uses X's impression count; X ad spend is a separate paid API and shows as not-connected until added.</p>`;
+      <p>That's it — every chart, KPI, blind-spot and the PDF keep working, now on real data. <strong>TikTok and LinkedIn</strong> drop in the same way next. If the backend is ever unreachable, the dashboard quietly falls back to demo data so it never breaks in front of a client.</p>
+      <p style="color:var(--muted2)">Notes: a built-in cache polls each account about twice a day (set by <code>CACHE_TTL_HOURS</code>) so costs stay low no matter how often the dashboard refreshes. Follower-growth charts build up from the day you go live (daily snapshots). X ad spend is a separate paid API and shows as not-connected until added.</p>`;
   }
 
   function shortP(p){ return {instagram:"ig",tiktok:"tt",facebook:"fb",twitter:"tw",linkedin:"li"}[p]||"ig"; }
@@ -241,7 +245,7 @@
 
   /* ---------------- modal (add client) ---------------- */
   function openClientModal(){
-    ["name","instagram","tiktok","facebook","twitter","linkedin","budget"].forEach(f=>{ const el=$("#f_"+f); if(el) el.value=""; });
+    ["name","instagram","tiktok","facebook","twitter","linkedin","budget","instagram_id","facebook_page_id","meta_ad_account_id"].forEach(f=>{ const el=$("#f_"+f); if(el) el.value=""; });
     $("#clientModal").hidden=false;
   }
   function saveClient(){
@@ -253,7 +257,10 @@
       handles:{
         instagram:$("#f_instagram").value.trim(), tiktok:$("#f_tiktok").value.trim(),
         facebook:$("#f_facebook").value.trim(), twitter:$("#f_twitter").value.trim(),
-        linkedin:$("#f_linkedin").value.trim() },
+        linkedin:$("#f_linkedin").value.trim(),
+        instagram_id:$("#f_instagram_id").value.trim(),
+        facebook_page_id:$("#f_facebook_page_id").value.trim(),
+        meta_ad_account_id:$("#f_meta_ad_account_id").value.trim() },
       seed: Math.floor(Math.random()*200)+1 };
     clients.push(client); DATA.saveClients(clients);
     currentClientId = id; fillClientSelect();

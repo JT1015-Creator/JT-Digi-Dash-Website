@@ -235,6 +235,15 @@
           <label class="field"><span>LinkedIn</span><input type="text" id="f_linkedin" placeholder="company/brand" /></label>
           <label class="field"><span>Monthly ad budget (R)</span><input type="number" id="f_budget" placeholder="90000" /></label>
         </div>
+        <details class="advanced">
+          <summary>Advanced — Meta IDs (optional, for live data)</summary>
+          <p class="advanced__hint">Leave blank to auto-detect from your Meta token. Fill in only if you manage several Meta clients.</p>
+          <div class="field-grid">
+            <label class="field"><span>Instagram Business account ID</span><input type="text" id="f_instagram_id" placeholder="178414…" /></label>
+            <label class="field"><span>Facebook Page ID</span><input type="text" id="f_facebook_page_id" placeholder="102938…" /></label>
+            <label class="field"><span>Meta Ad Account ID</span><input type="text" id="f_meta_ad_account_id" placeholder="act_1234… or 1234…" /></label>
+          </div>
+        </details>
       </div>
       <div class="modal__foot">
         <button class="btn btn--ghost" id="clientCancel">Cancel</button>

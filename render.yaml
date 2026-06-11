@@ -10,8 +10,16 @@ services:
     buildCommand: npm install
     startCommand: npm start
     plan: free
+    disk:                    # persists follower snapshots + cache across restarts
+      name: jtdd-data
+      mountPath: /opt/render/project/src/server/data
+      sizeGB: 1
     envVars:
       - key: X_BEARER_TOKEN
-        sync: false          # you paste this secret in the Render dashboard
+        sync: false          # paste your X token in the Render dashboard
+      - key: META_TOKEN
+        sync: false          # paste your Meta Graph API token in the Render dashboard
       - key: CURRENCY_SYMBOL
         value: R
+      - key: CACHE_TTL_HOURS
+        value: "12"

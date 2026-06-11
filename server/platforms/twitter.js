@@ -1,72 +1,57 @@
 /* ============================================================
-   X (Twitter) integration — X API v2, app-only Bearer token.
+   X (Twitter) — X API v2, app-only Bearer token.
+   Env:  X_BEARER_TOKEN
    ------------------------------------------------------------
-   Needs env var:  X_BEARER_TOKEN   (from your X developer app)
-   IMPORTANT: reading this data requires the X API **Basic tier**
-   (paid). The free tier will return 403/limited responses.
-
-   What X gives us:
-     • current follower/following/tweet counts  (snapshot only)
-     • recent tweets with public_metrics
-         (likes, replies, retweets, quotes, impressions)
-   What X does NOT give us:
-     • historical follower counts  -> we snapshot daily ourselves
-     • organic "reach"             -> we use impressions as proxy
-     • ad spend                    -> separate paid X Ads API
+   Returns the unified "raw platform data" shape consumed by
+   server/assemble.js. X gives a current follower count only and
+   no ad-spend, so reachRows/spendRows are null and campaigns [].
+   Reading analytics requires X's paid (pay-per-use) access.
    ============================================================ */
 const API = "https://api.twitter.com/2";
 
-function authHeaders(){
-  const token = process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER;
-  if(!token) throw new Error("Missing X_BEARER_TOKEN environment variable");
-  return { Authorization: `Bearer ${token}` };
+function token(){
+  const t = process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER;
+  if(!t) throw new Error("Missing X_BEARER_TOKEN environment variable");
+  return t;
 }
-
 function cleanHandle(h){ return String(h||"").replace(/^@/,"").replace(/^.*twitter\.com\//,"").replace(/^.*x\.com\//,"").trim(); }
 
-async function getUser(handle){
+async function getJSON(url){
+  const r = await fetch(url, { headers:{ Authorization:`Bearer ${token()}` } });
+  if(!r.ok) throw new Error(`X API ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function fetchRaw(handle){
   const u = cleanHandle(handle);
-  const r = await fetch(`${API}/users/by/username/${u}?user.fields=public_metrics,name,username`, { headers: authHeaders() });
-  if(!r.ok) throw new Error(`X user lookup failed (${r.status}): ${await r.text()}`);
-  const j = await r.json();
-  if(!j.data) throw new Error(`X user not found: @${u}`);
-  return j.data; // { id, name, username, public_metrics:{followers_count,...} }
-}
+  const userJ = await getJSON(`${API}/users/by/username/${u}?user.fields=public_metrics`);
+  if(!userJ.data) throw new Error(`X user not found: @${u}`);
+  const pm = userJ.data.public_metrics || {};
 
-async function getRecentTweets(userId, max=100){
-  const url = `${API}/users/${userId}/tweets`
-    + `?max_results=${Math.min(max,100)}`
-    + `&exclude=retweets,replies`
-    + `&tweet.fields=public_metrics,created_at`;
-  const r = await fetch(url, { headers: authHeaders() });
-  if(!r.ok) throw new Error(`X tweets fetch failed (${r.status}): ${await r.text()}`);
-  const j = await r.json();
-  return j.data || [];
-}
+  const tweetsJ = await getJSON(`${API}/users/${userJ.data.id}/tweets`
+    + `?max_results=100&exclude=retweets,replies&tweet.fields=public_metrics,created_at`);
+  const tweets = tweetsJ.data || [];
 
-/* Returns normalised X data the assembler in server.js turns into
-   the dashboard JSON shape. */
-async function fetchTwitter(handle, days){
-  const user = await getUser(handle);
-  const tweets = await getRecentTweets(user.id, 100);
-  const pm = user.public_metrics || {};
   return {
-    handle: cleanHandle(handle),
+    platform: "twitter",
+    handle: u,
     followers: pm.followers_count || 0,
-    following: pm.following_count || 0,
-    tweetCount: pm.tweet_count || 0,
-    listed: pm.listed_count || 0,
-    tweets: tweets.map(t=>({
-      id: t.id,
-      text: t.text,
-      created_at: t.created_at,
-      like: t.public_metrics?.like_count || 0,
-      reply: t.public_metrics?.reply_count || 0,
-      retweet: t.public_metrics?.retweet_count || 0,
-      quote: t.public_metrics?.quote_count || 0,
-      impression: t.public_metrics?.impression_count || 0
-    }))
+    reachRows: null,           // X has no account-level reach; derived from posts
+    spendRows: null,           // X ad spend is a separate paid API
+    campaigns: [],
+    posts: tweets.map(t=>{
+      const m = t.public_metrics || {};
+      return {
+        created_at: t.created_at,
+        text: t.text || "",
+        like: m.like_count||0,
+        comment: m.reply_count||0,
+        share: (m.retweet_count||0)+(m.quote_count||0),
+        impression: m.impression_count||0,
+        reach: m.impression_count||0
+      };
+    })
   };
 }
 
-module.exports = { fetchTwitter, cleanHandle };
+module.exports = { fetchRaw, cleanHandle };
