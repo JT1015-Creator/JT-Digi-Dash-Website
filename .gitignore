@@ -6,6 +6,10 @@ server/node_modules/
 .env
 *.env
 server/.env
+!server/.env.example
+
+# runtime data (follower snapshots build up here)
+server/data/
 
 # os / editor
 .DS_Store

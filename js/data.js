@@ -181,9 +181,17 @@
 
   /* ---------------- LIVE fetch (uses your backend) ---------------- */
   async function liveData(client, days){
-    const url = `${CFG.API_BASE}/api/dashboard?client=${encodeURIComponent(client.id)}&days=${days}`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error("Live data request failed: "+res.status);
+    const url = `${CFG.API_BASE}/api/dashboard?days=${days}`;
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ client })
+    });
+    if(!res.ok){
+      let msg = "Live data request failed: "+res.status;
+      try{ const j = await res.json(); if(j.error) msg = j.error; }catch(e){}
+      throw new Error(msg);
+    }
     return res.json();
   }
 

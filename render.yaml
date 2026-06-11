@@ -1,0 +1,17 @@
+# One-click deploy of the JT Digi Dash live-data backend to Render.
+# In Render: New + → "Blueprint" → connect this repo → it reads this file.
+# After it deploys, add your X_BEARER_TOKEN under the service's Environment tab,
+# then copy the service URL into js/config.js (API_BASE) and set DATA_MODE:"live".
+services:
+  - type: web
+    name: jt-digi-dash-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: X_BEARER_TOKEN
+        sync: false          # you paste this secret in the Render dashboard
+      - key: CURRENCY_SYMBOL
+        value: R

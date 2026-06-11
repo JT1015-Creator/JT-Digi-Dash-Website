@@ -60,28 +60,50 @@ Open the **Accounts** tab → **+ Add Client**. Enter the brand name, their soci
 
 ---
 
-## 🔌 Going live with real data (optional, advanced)
+## 🔌 Going live with real data
 
-The dashboard already has everything wired — you only need to feed it real numbers.
+**X (Twitter) is already coded and ready.** The backend in [`/server`](server/) pulls real follower counts, tweets, engagement, reach (impressions), posting frequency and top posts from the **X API v2** and serves them to the dashboard. Other platforms drop in the same way next.
 
-1. **Deploy the backend** in [`/server`](server/) to a free host (Render, Railway or Vercel). It's a tiny Node/Express app exposing `GET /api/dashboard`.
-2. **Get API access tokens** for each platform you want real data from:
-   - Instagram & Facebook → **Meta Graph API** (Business account + Page token)
-   - TikTok → **TikTok for Business / Display API**
-   - X/Twitter → **X API v2** (Bearer token)
-   - LinkedIn → **LinkedIn Marketing API**
-   - Ads → **Meta Marketing API** / **TikTok Ads API**
-3. **Store tokens as environment variables** on your host (never in the code). Names are listed in [`server/server.js`](server/server.js).
-4. **Fill in the fetcher functions** in `server/server.js` so they return the same JSON shape the demo uses (see `demoData()` in [`js/data.js`](js/data.js)).
-5. In [`js/config.js`](js/config.js) set:
+### Switch X on (4 steps)
+
+1. **Get an X Bearer token.** Create a developer app at [developer.x.com](https://developer.x.com) and copy the **Bearer token**.
+   > ⚠️ **Cost:** reading analytics requires X's paid **Basic** tier (~US$100/month). The free tier won't return tweet/follower data.
+
+2. **Deploy the backend to Render (free).**
+   - Go to [render.com](https://render.com) → **New + → Blueprint** → connect this GitHub repo.
+   - Render reads [`render.yaml`](render.yaml) and sets the service up automatically.
+
+3. **Add your token.** In the Render service → **Environment** tab, set:
+   - `X_BEARER_TOKEN` = your X Bearer token
+   - (`CURRENCY_SYMBOL` is already `R`.)
+
+4. **Point the dashboard at it.** In [`js/config.js`](js/config.js):
    ```js
    DATA_MODE: "live",
-   API_BASE:  "https://your-backend-url.com",
+   API_BASE:  "https://your-service.onrender.com",   // your Render URL
    ```
+   Make sure each client's **X / Twitter** handle is filled in (Accounts tab). Commit & push — GitHub Pages redeploys automatically.
 
-That's it — every chart, KPI and the PDF export keep working unchanged.
+Every chart, KPI, blind-spot and the PDF export keep working — now on real X data. If the backend is ever unreachable, the dashboard quietly falls back to demo data so it never breaks in front of a client.
 
-> **Why the extra steps?** Each social platform requires its own approved developer app and access token to read private account data — that's their security rule, not the dashboard's. The demo mode lets you use and demo everything today while you arrange that access.
+### Test it locally first (optional)
+```bash
+cd server
+cp .env.example .env        # then paste your token into .env
+npm install
+npm start
+# open http://localhost:8787/api/dashboard?twitter=YourHandle&days=30
+npm test                    # runs an offline check with mock data, no token needed
+```
+
+### Notes & limits (X specifically)
+- X returns a **current** follower count only — so the growth chart builds up from the day you go live (the backend records a daily snapshot in `server/data/`).
+- **Reach** uses X's impression count. **Ad spend** is a separate paid X Ads API and shows as not-connected until added.
+
+### Adding the other platforms later
+Instagram + Facebook (and Meta ad spend) come from **one** Meta developer app — the best next step. TikTok and LinkedIn each need their own developer app. Each new platform is a small module in `server/platforms/` returning the same normalised data; the assembler in [`server/server.js`](server/server.js) already defines the shape.
+
+> **Why the developer-app steps?** Each platform requires its own approved app and access token to read account data — their security rule, not the dashboard's. Demo mode lets you use and present everything today while you arrange that access.
 
 ---
 

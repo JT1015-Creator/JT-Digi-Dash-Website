@@ -197,14 +197,15 @@
 
     $("#howtoBox").innerHTML = `
       <p>Right now the dashboard runs in <strong>Demo mode</strong> — realistic data that auto-refreshes so you can present to clients immediately.</p>
-      <p>To pull <strong>real</strong> numbers from these accounts:</p>
+      <p><strong>X (Twitter) is wired up first</strong> and ready to go live. To switch it on:</p>
       <ol>
-        <li>Deploy the included backend in <code>/server</code> (one click on Render, Railway or Vercel — see <code>README.md</code>).</li>
-        <li>Create developer apps &amp; get access tokens for each platform (Meta, TikTok, X, LinkedIn). The token names you need are listed in <code>js/config.js</code>.</li>
-        <li>Put those tokens in your server's environment variables (never in the website files).</li>
-        <li>In <code>js/config.js</code> set <code>DATA_MODE: "live"</code> and <code>API_BASE</code> to your server URL.</li>
+        <li>Create an <strong>X developer account &amp; app</strong> at <code>developer.x.com</code> and copy your <strong>Bearer token</strong>. <em>(Reading analytics needs X's paid <strong>Basic</strong> tier, ~$100/mo — the free tier won't return the data.)</em></li>
+        <li>Deploy the backend in <code>/server</code> — the repo includes a one-click <code>render.yaml</code> for <strong>Render</strong> (free). See <code>README.md</code> → “Going live”.</li>
+        <li>In Render, add your token as the <code>X_BEARER_TOKEN</code> environment variable (never in the website files).</li>
+        <li>In <code>js/config.js</code> set <code>DATA_MODE: "live"</code> and <code>API_BASE</code> to your Render URL. Make sure each client's <strong>X / Twitter</strong> handle is filled in above.</li>
       </ol>
-      <p>Nothing else changes — every chart, KPI and the PDF export keep working exactly as they do now.</p>`;
+      <p>That's it — every chart, KPI, blind-spot and the PDF export keep working, now on real X data. <strong>Instagram, Facebook, TikTok and LinkedIn</strong> drop in the same way next (Meta covers IG + FB + ad spend in one app).</p>
+      <p style="color:var(--muted2)">Note: X provides a <em>current</em> follower count only, so the growth chart fills in from the day you go live (the backend records a daily snapshot). Reach uses X's impression count; X ad spend is a separate paid API and shows as not-connected until added.</p>`;
   }
 
   function shortP(p){ return {instagram:"ig",tiktok:"tt",facebook:"fb",twitter:"tw",linkedin:"li"}[p]||"ig"; }
