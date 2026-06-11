@@ -29,6 +29,7 @@
 
   /* ---------------- helpers ---------------- */
   const fmt = DATA.fmt;
+  const money = DATA.money;
   function deltaHtml(d){
     const up = d>=0; return `<span class="kpi__delta ${up?"up":"down"}">${up?"▲":"▼"} ${Math.abs(d)}%</span>`;
   }
@@ -105,7 +106,7 @@
       kpiCard("Total Spend","💸","rgba(123,92,255,.22)", data.kpis.spend) +
       kpiCard("CPM","📊","rgba(31,182,255,.22)", data.kpis.cpm) +
       kpiCard("ROAS","📈","rgba(47,224,138,.22)", data.kpis.roas) +
-      kpiCard("Daily Budget","🗓","rgba(255,207,92,.22)", {value:"$"+fmt(data.dailyBudget), delta:0});
+      kpiCard("Daily Budget","🗓","rgba(255,207,92,.22)", {value:money(data.dailyBudget), delta:0});
 
     CH.simpleLine("chartSpend", data.labels, data.spend, "#7b5cff");
     const sp = data.spendByPlatform.filter(s=>s.spend>0);
@@ -117,9 +118,9 @@
       data.campaigns.map(c=>`<tr>
         <td>${c.name}</td>
         <td><span class="pill pill--${shortP(c.platform)}">${data.platformLabel[c.platform]}</span></td>
-        <td>$${fmt(c.spend)}</td>
+        <td>${money(c.spend)}</td>
         <td>${fmt(c.reach)}</td>
-        <td>$${c.cpm}</td>
+        <td>${DATA.CUR}${c.cpm}</td>
         <td style="color:${c.roas>=2?'#2fe08a':'#ffcf5c'};font-weight:600">${c.roas}x</td>
       </tr>`).join("") + `</tbody>`;
   }
@@ -161,10 +162,10 @@
     const er = parseFloat(d.kpis.engRate.value);
     if(er < 2) out.push({sev:"med",title:"Engagement rate below benchmark",
       detail:`Engagement rate is ${d.kpis.engRate.value}. Healthy social typically sits above 2–3%. Test more hooks, replies and UGC.`});
-    // expensive CPM
-    const cpm = parseFloat(d.kpis.cpm.value.replace("$",""));
-    if(cpm > 12) out.push({sev:"high",title:"Ad reach is getting expensive",
-      detail:`CPM is $${cpm.toFixed(2)} — above the ~$8–12 comfort zone. Refresh creative or tighten audiences to lower cost per 1,000 reached.`});
+    // expensive CPM (ZAR benchmarks: comfortable roughly R80–R150 per 1,000 reached)
+    const cpm = parseFloat(d.kpis.cpm.value.replace(/[^\d.]/g,""));
+    if(cpm > 150) out.push({sev:"high",title:"Ad reach is getting expensive",
+      detail:`CPM is ${DATA.CUR}${cpm.toFixed(2)} — above the ~${DATA.CUR}80–${DATA.CUR}150 comfort zone. Refresh creative or tighten audiences to lower cost per 1,000 reached.`});
     // weak ROAS campaigns
     const weak = d.campaigns.filter(c=>c.roas < 1.6);
     if(weak.length) out.push({sev:"high",title:`${weak.length} campaign(s) below break-even ROAS`,
@@ -247,7 +248,7 @@
     if(!name){ toast("Please enter a client name"); return; }
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,24)+"-"+Math.random().toString(36).slice(2,5);
     const client = { id, name,
-      budget: parseInt($("#f_budget").value)||5000,
+      budget: parseInt($("#f_budget").value)||90000,
       handles:{
         instagram:$("#f_instagram").value.trim(), tiktok:$("#f_tiktok").value.trim(),
         facebook:$("#f_facebook").value.trim(), twitter:$("#f_twitter").value.trim(),
@@ -291,7 +292,11 @@
 
   /* ---------------- init ---------------- */
   function init(){
-    $(".brand__name").textContent = CFG.BRAND_NAME || "JT Digi Dash";
+    const logo = $(".brand__logo");
+    if(logo){
+      logo.onerror = ()=>{ logo.onerror=null; logo.src = "assets/logo.svg"; }; // fall back if agency logo missing
+      if(CFG.LOGO) logo.src = CFG.LOGO;
+    }
     fillClientSelect();
     bind();
     switchView("overview");

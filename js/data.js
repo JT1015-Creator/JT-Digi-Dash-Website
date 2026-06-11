@@ -12,21 +12,35 @@
 
   /* ---- Default clients (seed). Stored & editable in localStorage. ---- */
   const SEED_CLIENTS = [
-    { id:"sprout", name:"Sprout Coffee Co.", budget:6700,
+    { id:"sprout", name:"Sprout Coffee Co.", budget:120000,
       handles:{ instagram:"@sproutcoffee", tiktok:"@sproutcoffee", facebook:"facebook.com/sproutcoffee", twitter:"@sproutcoffee", linkedin:"company/sprout-coffee" },
       seed:42 },
-    { id:"lumen", name:"Lumen Skincare", budget:12500,
+    { id:"lumen", name:"Lumen Skincare", budget:225000,
       handles:{ instagram:"@lumenskin", tiktok:"@lumen", facebook:"facebook.com/lumenskin", twitter:"", linkedin:"company/lumen" },
       seed:88 },
-    { id:"northpeak", name:"NorthPeak Outdoors", budget:4200,
+    { id:"northpeak", name:"NorthPeak Outdoors", budget:75000,
       handles:{ instagram:"@northpeak", tiktok:"", facebook:"facebook.com/northpeak", twitter:"@northpeak", linkedin:"company/northpeak" },
       seed:13 }
   ];
 
   /* ---------------- client storage ---------------- */
+  const SEED_VERSION = "2-zar"; // bump to refresh the built-in demo clients
+  const SEED_IDS = SEED_CLIENTS.map(c=>c.id);
   function loadClients(){
-    try{ const s = JSON.parse(localStorage.getItem("jtdd_clients")); if(s&&s.length) return s; }catch(e){}
+    try{
+      const stored = JSON.parse(localStorage.getItem("jtdd_clients"));
+      if(stored && stored.length){
+        if(localStorage.getItem("jtdd_seed_version") === SEED_VERSION) return stored;
+        // refresh demo clients but keep any clients the user added themselves
+        const custom = stored.filter(c=>!SEED_IDS.includes(c.id));
+        const merged = SEED_CLIENTS.concat(custom);
+        saveClients(merged);
+        localStorage.setItem("jtdd_seed_version", SEED_VERSION);
+        return merged;
+      }
+    }catch(e){}
     localStorage.setItem("jtdd_clients", JSON.stringify(SEED_CLIENTS));
+    localStorage.setItem("jtdd_seed_version", SEED_VERSION);
     return SEED_CLIENTS;
   }
   function saveClients(list){ localStorage.setItem("jtdd_clients", JSON.stringify(list)); }
@@ -44,6 +58,10 @@
     if (n>=1e3) return (n/1e3).toFixed(1).replace(/\.0$/,"")+"K";
     return Math.round(n).toLocaleString();
   }
+  // money() prefixes the configured currency symbol (default "R" for ZAR)
+  const CUR = CFG.CURRENCY_SYMBOL || "R";
+  function money(n){ return CUR + fmt(n); }
+  function moneyExact(n){ return CUR + Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
   /* ---------------- DEMO generator ---------------- */
   function demoData(client, days){
@@ -70,10 +88,18 @@
     totalFollowers=Math.round(totalFollowers);
 
     // reach + spend timeseries
-    const reach=[], spend=[]; const dailyBudget=(client.budget||5000)/30;
+    // baseCpm = realistic South African paid CPM (Rand per 1,000 reached).
+    // Reach is derived from spend at that CPM, plus free "organic" reach,
+    // so the top-line CPM stays coherent with the per-campaign CPMs below.
+    const reach=[], spend=[]; const dailyBudget=(client.budget||90000)/30;
+    const baseCpm = 70 + rng()*70;               // R70–R140 per 1,000 paid reach
+    const organicDaily = base*0.8;               // free reach baseline
     for(let i=0;i<days;i++){
-      reach.push(Math.round((base*2 + rng()*base*3) * (0.7+0.6*Math.sin(i/4))));
-      spend.push(Math.round(dailyBudget*(0.6+rng()*0.9)*liveJitter()));
+      const s = Math.round(dailyBudget*(0.6+rng()*0.9)*liveJitter());
+      spend.push(s);
+      const paidReach = s / baseCpm * 1000;
+      const organic = organicDaily * (0.7+0.6*Math.sin(i/4)) * (0.8+rng()*0.5);
+      reach.push(Math.round(paidReach + organic));
     }
     const totalReach = reach.reduce((a,b)=>a+b,0);
     const totalSpend = spend.reduce((a,b)=>a+b,0);
@@ -110,9 +136,10 @@
     const campNames=["Spring Launch","Always-On Retargeting","UGC Boost","Lookalike Prospecting","Promo: Free Shipping"];
     const campaigns = campNames.map((n,i)=>{
       const sp=Math.round(totalSpend*[.34,.22,.18,.16,.10][i]);
-      const rc=Math.round(sp*(40+rng()*120));
+      const cpm=+(baseCpm*(0.75+rng()*0.6)).toFixed(2);   // around the client CPM
+      const rc=Math.round(sp/cpm*1000);
       const roas=+(1.4+rng()*3.4).toFixed(2);
-      return { name:n, platform:adPlatforms[i%adPlatforms.length], spend:sp, reach:rc, cpm:+(sp/(rc/1000||1)).toFixed(2), roas };
+      return { name:n, platform:adPlatforms[i%adPlatforms.length], spend:sp, reach:rc, cpm, roas };
     });
 
     // top posts
@@ -140,10 +167,10 @@
       kpis:{
         followers:{ value:fmt(totalFollowers), delta:pct(prevTotal,totalFollowers) },
         reach:{ value:fmt(totalReach), delta:+(rng()*30-8).toFixed(1) },
-        spend:{ value:"$"+fmt(totalSpend), delta:+(rng()*24-10).toFixed(1) },
+        spend:{ value:money(totalSpend), delta:+(rng()*24-10).toFixed(1) },
         engagement:{ value:fmt(engagement), delta:+(rng()*40-6).toFixed(1) },
         engRate:{ value:(engagement/(views||1)*100).toFixed(1)+"%", delta:+(rng()*10-3).toFixed(1) },
-        cpm:{ value:"$"+(totalSpend/(totalReach/1000||1)).toFixed(2), delta:+(rng()*14-8).toFixed(1) },
+        cpm:{ value:moneyExact(totalSpend/(totalReach/1000||1)), delta:+(rng()*14-8).toFixed(1) },
         roas:{ value:(1.8+rng()*2.6).toFixed(2)+"x", delta:+(rng()*30-8).toFixed(1) },
         posts:{ value:Math.round(frequency.reduce((a,b)=>a+b.perWeek,0)*(days/7)).toString(), delta:+(rng()*20-6).toFixed(1) }
       }
@@ -162,7 +189,7 @@
 
   /* ---------------- public ---------------- */
   window.JTDD_DATA = {
-    PLATFORMS, PLATFORM_LABEL, fmt, loadClients, saveClients,
+    PLATFORMS, PLATFORM_LABEL, fmt, money, moneyExact, CUR, loadClients, saveClients,
     async get(client, days){
       if (CFG.DATA_MODE === "live" && CFG.API_BASE){
         try { return await liveData(client, days); }

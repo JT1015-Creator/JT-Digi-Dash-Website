@@ -21,6 +21,14 @@
   function grad(c, from, to){
     const g=c.createLinearGradient(0,0,0,260); g.addColorStop(0,from); g.addColorStop(1,to); return g;
   }
+  // "#7b5cff" -> "rgba(123,92,255,a)"  (accepts hex or rgb/rgba, returns valid rgba)
+  function rgba(color, a){
+    if(color[0]==="#"){
+      let h=color.slice(1); if(h.length===3) h=h.split("").map(x=>x+x).join("");
+      const n=parseInt(h,16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+    }
+    return color.replace(/^rgb\(/,"rgba(").replace(/\)$/,`,${a})`);
+  }
   const baseScales = (extra={}) => ({
     x:{ grid:{display:false}, ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8} },
     y:{ grid:{color:COLORS.grid}, ticks:{padding:8} },
@@ -76,7 +84,7 @@
       charts[id]=new Chart(c,{ data:{ labels, datasets:[
         { type:"line", label:"Reach", data:reach, yAxisID:"y", borderColor:COLORS.accent,
           backgroundColor:grad(c,"rgba(126,240,255,.25)","rgba(126,240,255,0)"), fill:true, tension:.4, pointRadius:0, borderWidth:2 },
-        { type:"bar", label:"Ad spend ($)", data:spend, yAxisID:"y1", backgroundColor:"rgba(123,92,255,.6)", borderRadius:5, maxBarThickness:14 }
+        { type:"bar", label:"Ad spend ("+((window.JTDD_CONFIG&&window.JTDD_CONFIG.CURRENCY_SYMBOL)||"R")+")", data:spend, yAxisID:"y1", backgroundColor:"rgba(123,92,255,.6)", borderRadius:5, maxBarThickness:14 }
       ]},
       options:{ responsive:true,maintainAspectRatio:false, interaction:{mode:"index",intersect:false},
         plugins:{legend:{position:"top",align:"end"}},
@@ -94,7 +102,7 @@
     simpleLine(id, labels, data, color){
       const c=ctx(id); if(!c) return; destroy(id);
       line(id, labels, [{ label:"", data, borderColor:color,
-        backgroundColor:grad(c, color.replace("rgb","rgba").replace(")",",.25)").replace("#","")||"rgba(31,182,255,.25)","rgba(0,0,0,0)"),
+        backgroundColor:grad(c, rgba(color,.25), rgba(color,0)),
         fill:true, tension:.4, pointRadius:0, borderWidth:2 }], {legend:false});
     },
 

@@ -3,9 +3,28 @@
    Renders the visible dashboard area to a multi-page A4 PDF.
    ============================================================ */
 (function(){
+  // load an image as a dataURL (so jsPDF can embed it); returns null on failure
+  function loadLogo(src){
+    return new Promise(resolve=>{
+      if(!src) return resolve(null);
+      const img = new Image(); img.crossOrigin = "anonymous";
+      img.onload = ()=>{
+        try{
+          const c = document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight;
+          c.getContext("2d").drawImage(img,0,0);
+          resolve({ data:c.toDataURL("image/png"), w:img.naturalWidth, h:img.naturalHeight });
+        }catch(e){ resolve(null); }
+      };
+      img.onerror = ()=>resolve(null);
+      img.src = src;
+    });
+  }
+
   async function exportPDF(clientName, viewName){
     const node = document.getElementById("captureRoot");
     const { jsPDF } = window.jspdf;
+    const CFG = window.JTDD_CONFIG || {};
+    const logo = await loadLogo(CFG.LOGO);
 
     // html2canvas snapshot at 2x for crisp charts
     const canvas = await html2canvas(node, {
@@ -22,10 +41,20 @@
     // ---- header band ----
     pdf.setFillColor(15,21,37); pdf.rect(0,0,pageW,20,"F");
     pdf.setFillColor(31,182,255); pdf.rect(0,20,pageW,0.8,"F");
-    pdf.setTextColor(255,255,255); pdf.setFont("helvetica","bold"); pdf.setFontSize(14);
-    pdf.text((window.JTDD_CONFIG.BRAND_NAME||"JT Digi Dash"), margin, 9);
+
+    let textX = margin;
+    if (logo){
+      // white tile so the logo (white bg) sits cleanly, keep aspect ratio
+      const h = 14, w = Math.min(logo.w * h / logo.h, 42);
+      pdf.setFillColor(255,255,255); pdf.roundedRect(margin, 3, w+2, h+1, 1.5, 1.5, "F");
+      pdf.addImage(logo.data, "PNG", margin+1, 3.5, w, h);
+      textX = margin + w + 6;
+    }
+
+    pdf.setTextColor(255,255,255); pdf.setFont("helvetica","bold"); pdf.setFontSize(13);
+    pdf.text((CFG.AGENCY_NAME || CFG.BRAND_NAME || "JT Digi Dash"), textX, 9);
     pdf.setFont("helvetica","normal"); pdf.setFontSize(9); pdf.setTextColor(180,195,225);
-    pdf.text(`${clientName}  ·  ${viewName}  ·  ${new Date().toLocaleString()}`, margin, 15);
+    pdf.text(`${clientName}  ·  ${viewName}  ·  ${new Date().toLocaleString()}`, textX, 15);
 
     // ---- image, paginated ----
     const imgW = usableW;

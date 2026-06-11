@@ -21,6 +21,12 @@ window.JTDD_CONFIG = {
 
   /* Branding — change freely. */
   BRAND_NAME: "JT Digi Dash",
+  AGENCY_NAME: "TEN15 J.T. Digital Agency",
+  LOGO: "assets/logo.png",   /* your agency logo (falls back to logo.svg if missing) */
+
+  /* Currency shown on all money values. "R" = South African Rand (ZAR). */
+  CURRENCY_SYMBOL: "R",
+  CURRENCY_CODE: "ZAR",
 
   /* ---------------------------------------------------------
      PLATFORM ACCESS TOKENS (for "live" mode only)
