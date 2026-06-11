@@ -1,0 +1,14 @@
+{
+  "name": "jt-digi-dash-api",
+  "version": "1.0.0",
+  "description": "Optional live-data backend for JT Digi Dash",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

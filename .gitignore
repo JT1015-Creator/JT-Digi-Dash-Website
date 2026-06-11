@@ -1,0 +1,14 @@
+# dependencies
+node_modules/
+server/node_modules/
+
+# secrets — NEVER commit these
+.env
+*.env
+server/.env
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
