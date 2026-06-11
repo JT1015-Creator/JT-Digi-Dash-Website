@@ -10,10 +10,14 @@ services:
     buildCommand: npm install
     startCommand: npm start
     plan: free
-    disk:                    # persists follower snapshots + cache across restarts
-      name: jtdd-data
-      mountPath: /opt/render/project/src/server/data
-      sizeGB: 1
+    # NOTE: Render's free plan has an ephemeral filesystem, so follower-growth
+    # snapshots reset whenever the free service sleeps/redeploys. That's fine to
+    # start. To make growth history persist, upgrade the service to a paid plan
+    # and UNCOMMENT the disk block below.
+    # disk:
+    #   name: jtdd-data
+    #   mountPath: /opt/render/project/src/server/data
+    #   sizeGB: 1
     envVars:
       - key: X_BEARER_TOKEN
         sync: false          # paste your X token in the Render dashboard
