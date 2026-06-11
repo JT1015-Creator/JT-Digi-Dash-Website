@@ -19,6 +19,8 @@ const { getOrFetch, recordFollowers, readFollowerHistory } = require("./lib/cach
 const { assemble } = require("./assemble");
 const twitter = require("./platforms/twitter");
 const meta = require("./platforms/meta");
+const tiktok = require("./platforms/tiktok");
+const linkedin = require("./platforms/linkedin");
 
 const app = express();
 app.use(cors());
@@ -48,6 +50,20 @@ async function gather(client, force){
     (Array.isArray(data)?data:[data]).forEach(d=>datas.push(d));
   }
 
+  // --- TikTok ---
+  if(h.tiktok){
+    const key = `tiktok:${client.id || client.name}`;
+    const { data } = await getOrFetch(key, ()=>tiktok.fetchRaw(client, FETCH_DATES()), force);
+    datas.push(data);
+  }
+
+  // --- LinkedIn ---
+  if(h.linkedin){
+    const key = `linkedin:${client.id || client.name}`;
+    const { data } = await getOrFetch(key, ()=>linkedin.fetchRaw(client, FETCH_DATES()), force);
+    datas.push(data);
+  }
+
   // record follower snapshots (idempotent per day) + collect history
   const historyByPlatform = {};
   datas.forEach(pd=>{
@@ -62,8 +78,8 @@ app.post("/api/dashboard", async (req, res) => {
   const force = req.query.force === "1";
   const client = (req.body && req.body.client) || {};
   const h = client.handles || {};
-  if(!(h.twitter || h.instagram || h.facebook))
-    return res.status(400).json({ error:"This client has no connected platform (X, Instagram or Facebook) set." });
+  if(!(h.twitter || h.instagram || h.facebook || h.tiktok || h.linkedin))
+    return res.status(400).json({ error:"This client has no connected platform (X, Instagram, Facebook, TikTok or LinkedIn) set." });
   try{
     const { datas, historyByPlatform } = await gather(client, force);
     if(!datas.length) return res.status(502).json({ error:"No platform data returned." });
@@ -88,7 +104,9 @@ app.get("/api/dashboard", async (req, res) => {
 app.get("/", (_, res) => res.send("JT Digi Dash API running. Test X: /api/dashboard?twitter=YourHandle&days=30"));
 app.get("/health", (_, res) => res.json({ ok:true,
   hasXToken: !!(process.env.X_BEARER_TOKEN||process.env.TWITTER_BEARER),
-  hasMetaToken: !!process.env.META_TOKEN }));
+  hasMetaToken: !!process.env.META_TOKEN,
+  hasTikTokToken: !!process.env.TIKTOK_ACCESS_TOKEN,
+  hasLinkedInToken: !!process.env.LINKEDIN_TOKEN }));
 
 if (require.main === module){
   app.listen(PORT, () => console.log(`JT Digi Dash API on http://localhost:${PORT}`));

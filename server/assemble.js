@@ -61,18 +61,23 @@ function assemble(client, days, platformDatas, historyByPlatform={}){
   const spendByPlatform = Object.entries(spendByPlatformMap)
     .map(([p,s])=>({ platform:p, label:PLATFORM_LABEL[p], spend:Math.round(s) }));
 
+  // ---- account-level aggregates (e.g. LinkedIn supplies these instead of posts) ----
+  let aggLike=0, aggShare=0, aggComment=0, aggImpr=0;
+  platformDatas.forEach(pd=>{ const t=pd.engagementTotals; if(t){ aggLike+=t.like||0; aggShare+=t.share||0; aggComment+=t.comment||0; aggImpr+=t.impression||0; } });
+
   // ---- engagement funnel ----
   const sum = (arr,f)=>arr.reduce((a,x)=>a+f(x),0);
-  const likes = sum(inWindow,p=>p.like||0);
-  const shares = sum(inWindow,p=>p.share||0);
-  const comments = sum(inWindow,p=>p.comment||0);
-  const impr = sum(inWindow,p=>p.impression||0);
+  const likes = sum(inWindow,p=>p.like||0) + aggLike;
+  const shares = sum(inWindow,p=>p.share||0) + aggShare;
+  const comments = sum(inWindow,p=>p.comment||0) + aggComment;
+  const impr = sum(inWindow,p=>p.impression||0) + aggImpr;
   const views = impr>0 ? impr : totalReach;
   const engagement = likes+shares+comments;
 
   // ---- per-network engagement ----
   const networkEngagement = {}; PLATFORMS.forEach(p=>networkEngagement[p]=0);
   inWindow.forEach(p=> networkEngagement[p.platform]+= (p.like||0)+(p.share||0)+(p.comment||0));
+  platformDatas.forEach(pd=>{ const t=pd.engagementTotals; if(t) networkEngagement[pd.platform]+= (t.like||0)+(t.share||0)+(t.comment||0); });
 
   // ---- active days of week ----
   const dowCount=[0,0,0,0,0,0,0];
@@ -87,7 +92,10 @@ function assemble(client, days, platformDatas, historyByPlatform={}){
   });
   const lastPostGap={}; PLATFORMS.forEach(p=>lastPostGap[p]= present.includes(p)?0:999);
   platformDatas.forEach(pd=>{
-    if(!pd.posts||!pd.posts.length){ lastPostGap[pd.platform]=999; return; }
+    if(!pd.posts||!pd.posts.length){
+      // account-level platforms (e.g. LinkedIn) have no per-post data: treat as active, not "gone quiet"
+      lastPostGap[pd.platform] = pd.engagementTotals ? 0 : 999; return;
+    }
     const latest = pd.posts.reduce((a,b)=> new Date(b.created_at)>new Date(a.created_at)?b:a);
     lastPostGap[pd.platform]= Math.floor((Date.now()-new Date(latest.created_at))/86400000);
   });

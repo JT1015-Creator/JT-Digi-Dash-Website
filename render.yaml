@@ -19,6 +19,12 @@ services:
         sync: false          # paste your X token in the Render dashboard
       - key: META_TOKEN
         sync: false          # paste your Meta Graph API token in the Render dashboard
+      - key: TIKTOK_ACCESS_TOKEN
+        sync: false          # TikTok per-account OAuth token (or set per-client)
+      - key: LINKEDIN_TOKEN
+        sync: false          # LinkedIn Marketing API token
+      - key: LINKEDIN_ORG_ID
+        sync: false          # LinkedIn numeric organization id (or set per-client)
       - key: CURRENCY_SYMBOL
         value: R
       - key: CACHE_TTL_HOURS

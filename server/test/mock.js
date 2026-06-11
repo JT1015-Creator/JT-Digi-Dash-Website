@@ -5,6 +5,9 @@
 */
 process.env.X_BEARER_TOKEN = "x-test";
 process.env.META_TOKEN = "meta-test";
+process.env.TIKTOK_ACCESS_TOKEN = "tt-test";
+process.env.LINKEDIN_TOKEN = "li-test";
+process.env.LINKEDIN_ORG_ID = "123456";
 process.env.CURRENCY_SYMBOL = "R";
 process.env.CACHE_TTL_HOURS = "12";
 
@@ -67,12 +70,32 @@ global.fetch = async (url) => {
       { campaign_name:"FB Retargeting", publisher_platform:"facebook", spend:"2100.00", reach:"31000", impressions:"70000" }
     ]});
 
+  // ---------- TikTok ----------
+  if(url.includes("/user/info/"))
+    return J({ data:{ user:{ open_id:"tt1", follower_count:33000, following_count:50, likes_count:120000, video_count:88, display_name:"Test Co" } }, error:{ code:"ok" } });
+  if(url.includes("/video/list/"))
+    return J({ data:{ videos:[
+      { id:"v1", title:"Trend dance 🔥", create_time:Math.floor((Date.now()-1*86400000)/1000), like_count:5400, comment_count:210, share_count:380, view_count:142000 },
+      { id:"v2", title:"How-to in 15s", create_time:Math.floor((Date.now()-3*86400000)/1000), like_count:2100, comment_count:95, share_count:120, view_count:61000 }
+    ]}, error:{ code:"ok" } });
+
+  // ---------- LinkedIn ----------
+  if(url.includes("/networkSizes/"))
+    return J({ firstDegreeSize: 8700 });
+  if(url.includes("organizationalEntityShareStatistics"))
+    return J({ elements:[
+      { timeRange:{ start: Date.now()-2*86400000, end: Date.now()-1*86400000 }, totalShareStatistics:{ impressionCount:5200, likeCount:140, commentCount:22, shareCount:18, clickCount:90 } },
+      { timeRange:{ start: Date.now()-1*86400000, end: Date.now() },             totalShareStatistics:{ impressionCount:6100, likeCount:175, commentCount:30, shareCount:25, clickCount:110 } }
+    ]});
+
   throw new Error("unexpected url "+url);
 };
 
 (async () => {
   const twitter = require("../platforms/twitter");
   const meta = require("../platforms/meta");
+  const tiktok = require("../platforms/tiktok");
+  const linkedin = require("../platforms/linkedin");
   const { assemble } = require("../assemble");
   const { lastNDates } = require("../lib/util");
   const cache = require("../lib/cache");
@@ -88,7 +111,8 @@ global.fetch = async (url) => {
 
   // 2) Meta normalisation (returns [instagram, facebook])
   const client = { id:"testco", name:"Test Co", budget:90000,
-    handles:{ twitter:"@testco", instagram:"@testco", facebook:"facebook.com/testco", meta_ad_account_id:"act_999" } };
+    handles:{ twitter:"@testco", instagram:"@testco", facebook:"facebook.com/testco", meta_ad_account_id:"act_999",
+              tiktok:"@testco", linkedin:"company/testco", linkedin_org_id:"123456" } };
   const metaDatas = await meta.fetchMeta(client, dates90);
   const ig = metaDatas.find(d=>d.platform==="instagram");
   const fb = metaDatas.find(d=>d.platform==="facebook");
@@ -99,10 +123,25 @@ global.fetch = async (url) => {
   assert.ok(fb.campaigns.length >= 1, "FB campaign present");
   assert.strictEqual(ig.campaigns.every(c=>c.platform==="instagram"), true, "IG campaigns filtered");
 
-  // 3) assemble all three platforms
-  const d = assemble(client, 30, [tw, ...metaDatas], {});
+  // 3) TikTok normalisation
+  const tt = await tiktok.fetchRaw(client, dates90);
+  assert.strictEqual(tt.platform, "tiktok");
+  assert.strictEqual(tt.followers, 33000, "TikTok followers");
+  assert.strictEqual(tt.posts.length, 2, "TikTok videos");
+  assert.strictEqual(tt.posts[0].reach, 142000, "TikTok view_count -> reach");
+
+  // 4) LinkedIn normalisation (account-level)
+  const li = await linkedin.fetchRaw(client, dates90);
+  assert.strictEqual(li.platform, "linkedin");
+  assert.strictEqual(li.followers, 8700, "LinkedIn followers");
+  assert.strictEqual(li.posts.length, 0, "LinkedIn has no per-post data");
+  assert.ok(li.engagementTotals && li.engagementTotals.impression === 5200+6100, "LinkedIn impressions aggregated");
+  assert.ok(li.reachRows && li.reachRows.length === 2, "LinkedIn daily reach rows");
+
+  // 5) assemble ALL FIVE platforms
+  const d = assemble(client, 30, [tw, ...metaDatas, tt, li], {});
   ["labels","followersByPlatform","reach","spend","funnel","campaigns","topPosts","kpis","spendByPlatform"].forEach(k=>assert.ok(k in d,"missing "+k));
-  assert.strictEqual(d.totalFollowers, 18452+24500+51000, "followers summed across platforms");
+  assert.strictEqual(d.totalFollowers, 18452+24500+51000+33000+8700, "followers summed across all 5 platforms");
   assert.ok(d.totalSpend > 0, "real ad spend assembled");
   assert.ok(d.kpis.spend.value.startsWith("R"), "ZAR currency");
   assert.strictEqual(d.kpis.roas.value, "—", "roas N/A (no revenue data)");
@@ -111,8 +150,12 @@ global.fetch = async (url) => {
   // spend split across IG + FB
   const platsWithSpend = d.spendByPlatform.map(s=>s.platform).sort();
   assert.deepStrictEqual(platsWithSpend, ["facebook","instagram"], "spend split by publisher platform");
-  // top post should be the high-engagement IG reel
-  assert.ok(d.topPosts[0].caption.includes("Reel") || d.topPosts[0].engagement>=2000, "top post by engagement");
+  // LinkedIn account-level engagement folded into network + funnel, and NOT flagged "gone quiet"
+  assert.ok(d.networkEngagement.linkedin === (140+22+18)+(175+30+25), "LinkedIn engagement folded in");
+  assert.strictEqual(d.lastPostGap.linkedin, 0, "LinkedIn active (account-level), not 999");
+  // TikTok contributes posts + reach
+  assert.ok(d.networkEngagement.tiktok > 0, "TikTok engagement present");
+  assert.ok(d.topPosts.some(p=>p.platform==="tiktok"), "TikTok post in top posts");
 
   // 4) cache: second call must NOT re-invoke the fetcher within TTL
   let calls=0;

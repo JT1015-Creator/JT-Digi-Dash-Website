@@ -62,30 +62,34 @@ Open the **Accounts** tab → **+ Add Client**. Enter the brand name, their soci
 
 ## 🔌 Going live with real data
 
-**Two integrations are built, tested and ready:**
+**All five platforms are built, tested and ready:**
 
-- **Meta — Instagram + Facebook + ad spend** ([`server/platforms/meta.js`](server/platforms/meta.js)). **Free API.** One Graph API token covers followers, posts, engagement, account reach, and ad spend (split by Instagram vs Facebook) with per-campaign breakdowns.
+- **Meta — Instagram + Facebook + ad spend** ([`server/platforms/meta.js`](server/platforms/meta.js)). **Free.** One Graph API token covers followers, posts, engagement, account reach, and ad spend (split by Instagram vs Facebook) with per-campaign breakdowns.
+- **TikTok** ([`server/platforms/tiktok.js`](server/platforms/tiktok.js)). **Free.** Followers, videos, likes/comments/shares, views (reach), posting frequency, top posts. Optional ad spend via the Business API.
+- **LinkedIn** ([`server/platforms/linkedin.js`](server/platforms/linkedin.js)). **Free** (needs Marketing Developer Platform approval). Account-level followers, daily reach (impressions) and aggregate engagement.
 - **X / Twitter** ([`server/platforms/twitter.js`](server/platforms/twitter.js)). Followers, tweets, engagement, reach (impressions), posting frequency, top posts. **Pay-per-use** API.
 
 A **built-in cache** ([`server/lib/cache.js`](server/lib/cache.js)) polls each account only about twice a day no matter how often the dashboard refreshes — this is what keeps X's pay-per-use cost down to roughly **R25–R50/client/month**.
 
 ### Switch on (4 steps)
 
-1. **Get your tokens.**
-   - **Meta:** create an app at [developers.facebook.com](https://developers.facebook.com), connect the client's Instagram **Business** account + Facebook Page, and generate a **long-lived access token**. (Free.)
+1. **Get your tokens** (for whichever platforms you want — all free except X).
+   - **Meta:** create an app at [developers.facebook.com](https://developers.facebook.com), connect the client's Instagram **Business** account + Facebook Page, and generate a **long-lived access token**.
+   - **TikTok:** register at [developers.tiktok.com](https://developers.tiktok.com); each client authorises once (per-account OAuth token).
+   - **LinkedIn:** apply for the **Marketing Developer Platform** at [linkedin.com/developers](https://www.linkedin.com/developers), then get a token + the client's numeric **organization ID**.
    - **X:** create an app at [developer.x.com](https://developer.x.com) and copy the **Bearer token**.
-     > ⚠️ **X cost:** as of 2026 X reading is **pay-per-use** (≈$0.005/post read). The cache keeps this small, but it isn't free like Meta.
+     > ⚠️ **X cost:** as of 2026 X reading is **pay-per-use** (≈$0.005/post read). The cache keeps this small, but it isn't free like the others.
 
 2. **Deploy the backend to Render.** [render.com](https://render.com) → **New + → Blueprint** → connect this GitHub repo. Render reads [`render.yaml`](render.yaml) and sets everything up (including a small disk for follower history).
 
-3. **Add your tokens** in the Render service → **Environment** tab: `META_TOKEN` and/or `X_BEARER_TOKEN`. (`CURRENCY_SYMBOL=R` and `CACHE_TTL_HOURS=12` are already set.)
+3. **Add your tokens** in the Render service → **Environment** tab — any of `META_TOKEN`, `TIKTOK_ACCESS_TOKEN`, `LINKEDIN_TOKEN` + `LINKEDIN_ORG_ID`, `X_BEARER_TOKEN`. (`CURRENCY_SYMBOL=R` and `CACHE_TTL_HOURS=12` are already set.) Connect only the platforms you want — the dashboard adapts.
 
 4. **Point the dashboard at it.** In [`js/config.js`](js/config.js):
    ```js
    DATA_MODE: "live",
    API_BASE:  "https://your-service.onrender.com",
    ```
-   Fill in each client's handles (Accounts tab). If you manage **several** Meta clients, add their **IDs** under *Add Client → Advanced* (Instagram Business ID, Page ID, Ad Account ID) so the backend targets the right accounts. Commit & push — GitHub Pages redeploys automatically.
+   Fill in each client's handles (Accounts tab). If you manage **several** clients on one platform, add their per-client **IDs/tokens** under *Add Client → Advanced* (Meta IDs, LinkedIn Org ID, TikTok token) so the backend targets the right accounts. Commit & push — GitHub Pages redeploys automatically.
 
 Every chart, KPI, blind-spot and the PDF keep working — now on real data. If the backend is ever unreachable, the dashboard quietly falls back to demo data so it never breaks in front of a client.
 
@@ -104,7 +108,9 @@ npm test                    # offline check with mock data — no tokens/network
 ### Notes & limits
 - Follower **growth** charts build up from the day you go live (APIs give a current count only; the backend snapshots daily into `server/data/`).
 - **ROAS** shows “—”: ad platforms report spend/reach but not revenue, so true ROAS needs your sales data (a future add-on).
-- **TikTok** and **LinkedIn** drop in the same way next — a module in `server/platforms/` returning the same normalised shape; [`server/assemble.js`](server/assemble.js) already merges any combination of platforms.
+- **LinkedIn** shows account-level totals (followers, daily reach, aggregate engagement) — its API doesn't expose convenient per-post metrics, so it has no top-posts/posting-frequency breakdown.
+- **TikTok** ad spend and **X** ad spend use their separate ads APIs (optional); organic data works with the standard tokens.
+- Adding another platform later = a module in `server/platforms/` returning the same normalised shape; [`server/assemble.js`](server/assemble.js) already merges any combination of platforms.
 
 > **Why the developer-app steps?** Each platform requires its own approved app and access token to read account data — their security rule, not the dashboard's. Demo mode lets you use and present everything today while you arrange that access.
 
@@ -122,8 +128,13 @@ JT-Digi-Dash-Website/
 │  ├─ charts.js       all charts (Chart.js)
 │  ├─ pdf.js          PDF export
 │  └─ app.js          wires everything together
-├─ assets/logo.svg
-└─ server/            optional backend for live data
+├─ assets/logo.png    your agency logo (logo.svg = fallback)
+└─ server/            live-data backend
+   ├─ server.js       endpoints + caching + multi-platform orchestration
+   ├─ assemble.js     merges any platforms into the dashboard shape
+   ├─ lib/            util + cache (snapshots, TTL)
+   ├─ platforms/      twitter · meta · tiktok · linkedin
+   └─ test/mock.js    offline test (npm test)
 ```
 
 ---

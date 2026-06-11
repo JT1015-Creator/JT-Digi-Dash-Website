@@ -197,19 +197,19 @@
 
     $("#howtoBox").innerHTML = `
       <p>Right now the dashboard runs in <strong>Demo mode</strong> — realistic data that auto-refreshes so you can present to clients immediately.</p>
-      <p><strong>Two integrations are built &amp; ready:</strong> <strong>Meta</strong> (Instagram + Facebook + ad spend — <em>free API</em>) and <strong>X / Twitter</strong> (pay-per-use). To go live:</p>
+      <p><strong>All five platforms are built &amp; ready:</strong> Instagram, Facebook + ad spend (Meta), TikTok, LinkedIn — all <em>free APIs</em> — and X / Twitter (pay-per-use). To go live:</p>
       <ol>
         <li>Deploy the backend in <code>/server</code> — one click via the included <code>render.yaml</code> on <strong>Render</strong>. See <code>README.md</code> → “Going live”.</li>
-        <li>Get your tokens and add them as environment variables in Render (never in the website files):
+        <li>Get tokens for the platforms you want and add them as environment variables in Render (never in the website files):
           <ul>
-            <li><strong>Meta:</strong> <code>META_TOKEN</code> — a Graph API token from a Meta developer app (covers IG, FB &amp; ads).</li>
-            <li><strong>X:</strong> <code>X_BEARER_TOKEN</code> — from <code>developer.x.com</code>. <em>(Analytics access is pay-per-use; smart caching keeps it ~R25–R50/client/mo.)</em></li>
+            <li><strong>Meta</strong> <code>META_TOKEN</code> (IG + FB + ads), <strong>TikTok</strong> <code>TIKTOK_ACCESS_TOKEN</code>, <strong>LinkedIn</strong> <code>LINKEDIN_TOKEN</code> + <code>LINKEDIN_ORG_ID</code> — all free.</li>
+            <li><strong>X</strong> <code>X_BEARER_TOKEN</code> from <code>developer.x.com</code> — <em>pay-per-use; smart caching keeps it ~R25–R50/client/mo.</em></li>
           </ul>
         </li>
-        <li>In <code>js/config.js</code> set <code>DATA_MODE: "live"</code> and <code>API_BASE</code> to your Render URL. Fill in each client's handles above (for several Meta clients, add their IDs under “Advanced” when adding a client).</li>
+        <li>In <code>js/config.js</code> set <code>DATA_MODE: "live"</code> and <code>API_BASE</code> to your Render URL. Fill in each client's handles above. Managing several clients on one platform? Add their IDs/tokens under “Advanced” when adding a client.</li>
       </ol>
-      <p>That's it — every chart, KPI, blind-spot and the PDF keep working, now on real data. <strong>TikTok and LinkedIn</strong> drop in the same way next. If the backend is ever unreachable, the dashboard quietly falls back to demo data so it never breaks in front of a client.</p>
-      <p style="color:var(--muted2)">Notes: a built-in cache polls each account about twice a day (set by <code>CACHE_TTL_HOURS</code>) so costs stay low no matter how often the dashboard refreshes. Follower-growth charts build up from the day you go live (daily snapshots). X ad spend is a separate paid API and shows as not-connected until added.</p>`;
+      <p>That's it — every chart, KPI, blind-spot and the PDF keep working, now on real data. If the backend is ever unreachable, the dashboard quietly falls back to demo data so it never breaks in front of a client.</p>
+      <p style="color:var(--muted2)">Notes: a built-in cache polls each account about twice a day (set by <code>CACHE_TTL_HOURS</code>) so costs stay low no matter how often the dashboard refreshes. Follower-growth charts build up from the day you go live (daily snapshots). LinkedIn shows account-level totals (its API doesn't expose per-post data); TikTok/X ad spend need their separate ad APIs.</p>`;
   }
 
   function shortP(p){ return {instagram:"ig",tiktok:"tt",facebook:"fb",twitter:"tw",linkedin:"li"}[p]||"ig"; }
@@ -245,7 +245,7 @@
 
   /* ---------------- modal (add client) ---------------- */
   function openClientModal(){
-    ["name","instagram","tiktok","facebook","twitter","linkedin","budget","instagram_id","facebook_page_id","meta_ad_account_id"].forEach(f=>{ const el=$("#f_"+f); if(el) el.value=""; });
+    ["name","instagram","tiktok","facebook","twitter","linkedin","budget","instagram_id","facebook_page_id","meta_ad_account_id","linkedin_org_id","tiktok_token","tiktok_advertiser_id"].forEach(f=>{ const el=$("#f_"+f); if(el) el.value=""; });
     $("#clientModal").hidden=false;
   }
   function saveClient(){
@@ -260,7 +260,10 @@
         linkedin:$("#f_linkedin").value.trim(),
         instagram_id:$("#f_instagram_id").value.trim(),
         facebook_page_id:$("#f_facebook_page_id").value.trim(),
-        meta_ad_account_id:$("#f_meta_ad_account_id").value.trim() },
+        meta_ad_account_id:$("#f_meta_ad_account_id").value.trim(),
+        linkedin_org_id:$("#f_linkedin_org_id").value.trim(),
+        tiktok_token:$("#f_tiktok_token").value.trim(),
+        tiktok_advertiser_id:$("#f_tiktok_advertiser_id").value.trim() },
       seed: Math.floor(Math.random()*200)+1 };
     clients.push(client); DATA.saveClients(clients);
     currentClientId = id; fillClientSelect();
